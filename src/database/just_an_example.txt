@@ -1,0 +1,140 @@
+const {
+    GraphQLSchema,
+    GraphQLObjectType,
+    GraphQLString,
+    GraphQLList,
+    GraphQLInt,
+    GraphQLNonNull
+} = require("graphql");
+
+
+const authors=[
+    {id:1,name:"JK Rowling",favoritesIds:[11,10]},
+    {id:2,name:"Tolkien",favoritesIds:[6,7,8,9]},
+    {id:3,name:"Araki"}
+]
+
+const books=[
+    {id:1,name:"Harry Potter 1",authorId:1},
+    {id:2,name:"Harry Potter 2",authorId:1},
+    {id:3,name:"Harry Potter 3",authorId:1},
+    {id:4,name:"Harry Potter 4",authorId:1},
+    {id:5,name:"Harry Potter 5",authorId:1},
+    {id:6,name:"Lord of the rings 1",authorId:2},
+    {id:7,name:"Lord of the rings 2",authorId:2},
+    {id:8,name:"Lord of the rings 3",authorId:2},
+    {id:9,name:"Hobbit",authorId:2},
+    {id:10,name:"Jojos",authorId:3},
+    {id:11,name:"Jojos 2",authorId:3}
+]
+
+
+/*
+const schema=new GraphQLSchema({
+    query:new GraphQLObjectType({
+        name:"HelloWorld",
+        fields:()=>({
+            message:{
+                type:GraphQLString,
+                resolve:()=>"Hello World"
+            }
+        })
+    })
+})
+*/
+
+const AuthorType= new GraphQLObjectType({
+    name: "Author",
+    description:"El escritor del lipro",
+    fields:()=>({
+        id:{type:new GraphQLNonNull(GraphQLInt)},
+        name:{type:new GraphQLNonNull(GraphQLString)},
+        books:{
+            type:new GraphQLList(BookType),
+            resolve:(parentAuthor)=>{
+                return books.filter((b)=> b.authorId === parentAuthor.id)
+            }
+        },
+        favorites:{
+            type:new GraphQLList(BookType),
+            args:{
+                index:{type:GraphQLInt},
+                id:{type:GraphQLInt}
+            },
+            resolve:(parentAuthor,{id,index})=>{
+                const authorFavs=authors.find(author=>author.id == parentAuthor.id).favoritesIds
+                let favsBookList= books.filter(book=>{
+                    return authorFavs.includes(book.id)
+                })
+
+                if(typeof id == "number")
+                return [favsBookList.find((favBook)=>favBook.id==id)]
+
+                if(typeof index == "number")
+                return [favsBookList[index]]
+
+                return favsBookList
+            }
+        }
+    })
+})
+
+const BookType= new GraphQLObjectType({
+    name: "Book",
+    description:"Booooooooooock",
+    fields:()=>({
+        id:{type:new GraphQLNonNull(GraphQLInt),description:"Identificator"},
+        name:{type:new GraphQLNonNull(GraphQLString)},
+        authorId:{type:new GraphQLNonNull(GraphQLInt)},
+        author:{
+            type:AuthorType,
+            resolve:(parentBook)=>{
+                //busca y retorna y lo desmenuza dentro de el objeto de AuthorType
+                return authors.find((author)=> author.id == parentBook.authorId);
+            }
+        }
+    })
+})
+
+const RootQueryType = new GraphQLObjectType({
+    name:"QueryPractice",
+    description:"practicing root query",
+    fields:()=>({
+        books:{
+            //entonces, lo que sucede aqui es que GraphQL entiende que le voy a dar
+            //una lista de objetos y cada objeto debe ser compatible con BookType
+            type:new GraphQLList(BookType),
+            description:"List of all books",
+            resolve:()=>books
+        },
+        authors:{
+            type:new GraphQLList(AuthorType),
+            description:"list of all autores",
+            resolve:()=>authors
+        },
+        book:{
+            type:BookType,
+            description:"just a book",
+            args:{
+                id:{type:GraphQLInt}
+            },
+            resolve:(parent,{id})=>books.find( b=> b.id==id)
+        },
+        author:{
+            type:AuthorType,
+            description:"autor",
+            args:{
+                id:{type:GraphQLInt}
+            },
+            resolve:(parents,{id})=>authors.find(a=>a.id==id)
+        }
+    })
+})
+
+const schema=new GraphQLSchema({
+    query:RootQueryType
+})
+
+module.exports={
+    schema
+};
